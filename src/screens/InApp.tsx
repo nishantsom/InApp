@@ -11,7 +11,15 @@ import {
   getAvailablePurchases,
   requestSubscription,
   validateReceiptIos,
+  initConnection,
+  finishTransaction,
+  PurchaseError,
+  clearTransactionIOS,
 } from 'react-native-iap';
+
+const errorLog = ({message, error}: {message: string; error: unknown}) => {
+  console.error('An error happened', message, error);
+};
 
 function InApp({navigation}: {navigation: any}) {
   // in-app hooks
@@ -23,7 +31,6 @@ function InApp({navigation}: {navigation: any}) {
   const [buyLoading, setBuyLoading] = React.useState(false);
 
   React.useEffect(() => {
-    // ... listen to currentPurchaseError, to check if any error happened
     _getProducts();
   }, []);
 
@@ -55,14 +62,40 @@ function InApp({navigation}: {navigation: any}) {
 
   // get iOS in-app purchase product list
   const _getProducts = async () => {
-    getProducts({
-      skus: ['autoRenewableMonthly', 'autoRenewableYearly'],
-    });
+    // ... listen to currentPurchaseError, to check if any error happened
+    try {
+      await initConnection();
+      /**
+       * WARNING This line should not be included in production code
+       * This call will call finishTransaction in all pending purchases
+       * on every launch, effectively consuming purchases that you might
+       * not have verified the receipt or given the consumer their product
+       *
+       * TL;DR you will no longer receive any updates from Apple on
+       * every launch for pending purchases
+       */
+      await clearTransactionIOS();
+      console.log('clearTransactionIOS');
+      getProducts({
+        skus: [
+          'com.salontechnologies.PersonalSalonAssistant.autoRenewableMonthly',
+          'com.salontechnologies.PersonalSalonAssistant.autoRenewableYearly',
+        ],
+      });
+      console.log('getProducts');
+    } catch (error) {
+      if (error instanceof PurchaseError) {
+        errorLog({message: `[${error.code}]: ${error.message}`, error});
+      } else {
+        errorLog({message: 'finishTransaction', error});
+      }
+    }
   };
 
-  // restore product when user re-install app or move to uther device
+  // restore product when user re-install app or move to other device
   const _restorePurchse = async () => {
     setRestoreLoading(true);
+    await initConnection();
     await getAvailablePurchases()
       .then(purchases => {
         let receipt = purchases[0]?.transactionReceipt;
@@ -106,7 +139,7 @@ function InApp({navigation}: {navigation: any}) {
   const _getReceiptData = async (receipt: any) => {
     const receiptBody: any = {
       'receipt-data': receipt,
-      password: '<shared-secret>',
+      password: '94827f808b414ce290bbfd2c25709134',
     };
 
     await validateReceiptIos({receiptBody: receiptBody, isTest: true})
@@ -133,6 +166,37 @@ function InApp({navigation}: {navigation: any}) {
         console.error(err);
       });
   };
+
+  const [ownedSubscriptions, setOwnedSubscriptions] = React.useState<string[]>(
+    [],
+  );
+
+  React.useEffect(() => {
+    console.log(JSON.stringify(ownedSubscriptions));
+  }, [ownedSubscriptions]);
+
+  React.useEffect(() => {
+    const checkCurrentPurchase = async () => {
+      try {
+        if (currentPurchase?.productId) {
+          await finishTransaction({
+            purchase: currentPurchase,
+            isConsumable: true,
+          });
+
+          setOwnedSubscriptions(prev => [...prev, currentPurchase?.productId]);
+        }
+      } catch (error) {
+        if (error instanceof PurchaseError) {
+          errorLog({message: `[${error.code}]: ${error.message}`, error});
+        } else {
+          errorLog({message: 'handleBuyProduct', error});
+        }
+      }
+    };
+
+    checkCurrentPurchase();
+  }, [currentPurchase, finishTransaction]);
 
   const RenderItem = ({item}: any) => {
     return (

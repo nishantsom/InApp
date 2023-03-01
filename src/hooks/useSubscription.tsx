@@ -14,12 +14,15 @@ function useSubscription() {
   const [loading, setLoading] = React.useState(true);
   const [isError, setError] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState('');
+  const [date, setDate] = React.useState('');
 
   React.useEffect(() => {
     // ... listen to currentPurchaseError, to check if any error happened
     console.log('currentPurchaseError');
-    setExpire(true);
-    setLoading(false);
+    if (currentPurchaseError) {
+      setExpire(true);
+      setLoading(false);
+    }
   }, [currentPurchaseError]);
 
   React.useEffect(() => {
@@ -49,7 +52,7 @@ function useSubscription() {
   const _getReceiptData = async (receipt: any) => {
     const receiptBody: any = {
       'receipt-data': receipt,
-      password: '<shared-secret>',
+      password: '94827f808b414ce290bbfd2c25709134',
     };
 
     await validateReceiptIos({receiptBody: receiptBody, isTest: true})
@@ -70,6 +73,12 @@ function useSubscription() {
         const isExpired = curtDateObj.getTime() > subExpDateObj.getTime();
         console.log('isExpired ----', isExpired);
 
+        setDate(
+          JSON.stringify({
+            curtDateObj: curtDateObj,
+            subExpDateObj: subExpDateObj,
+          }),
+        );
         setExpire(isExpired);
         setLoading(false);
         setError(false);
@@ -84,7 +93,7 @@ function useSubscription() {
       });
   };
 
-  return [isExpired, loading, isError, errorMsg];
+  return [isExpired, loading, isError, errorMsg, date];
 }
 
 export default useSubscription;
