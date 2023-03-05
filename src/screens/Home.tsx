@@ -11,7 +11,7 @@ import useSubscription from '../hooks/useSubscription';
 
 function Home({navigation}: {navigation: any}) {
   // get in-app purchase status
-  const [isExpired, loading, isError, errorMsg, date] = useSubscription();
+  const [isExpired, loading] = useSubscription();
 
   React.useEffect(() => {
     if (isExpired) {
@@ -27,19 +27,9 @@ function Home({navigation}: {navigation: any}) {
     );
   }
 
-  if (isError) {
-    return (
-      <View style={{flex: 1, justifyContent: 'center'}}>
-        <Text variant="titleMedium" style={{color: 'red'}}>
-          {errorMsg}
-        </Text>
-      </View>
-    );
-  }
-
   return (
     <View style={{flex: 1, justifyContent: 'center'}}>
-      <Text style={{textAlign: 'center'}}>DASHBOARD {date}</Text>
+      <Text style={{textAlign: 'center'}}>DASHBOARD</Text>
     </View>
   );
 }
